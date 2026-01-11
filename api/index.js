@@ -1,11 +1,13 @@
-export const config = {
-  runtime: 'edge',
-};
-
-export default async function handler(req) {
+export default async function handler(req, res) {
   const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
   const BASE_ID = "appFaytZ8b3ovaOUd";
   const TABLE_NAME = "Email Logs";
+
+  // Debug: Check if token exists
+  if (!AIRTABLE_TOKEN) {
+    res.status(500).send("Error: AIRTABLE_TOKEN environment variable not set");
+    return;
+  }
 
   try {
     // Fetch latest record from Airtable
@@ -20,8 +22,15 @@ export default async function handler(req) {
 
     const data = await airtableRes.json();
     
+    // Debug: Check Airtable response
+    if (data.error) {
+      res.status(500).send("Airtable error: " + JSON.stringify(data.error));
+      return;
+    }
+    
     if (!data.records || data.records.length === 0) {
-      return new Response("No records found", { status: 404 });
+      res.status(404).send("No records found in Email Logs table");
+      return;
     }
     
     const record = data.records[0].fields;
@@ -213,10 +222,10 @@ export default async function handler(req) {
 </body>
 </html>`;
 
-    return new Response(html, {
-      headers: { "Content-Type": "text/html" },
-    });
+    res.setHeader("Content-Type", "text/html");
+    res.status(200).send(html);
+    
   } catch (error) {
-    return new Response("Error: " + error.message, { status: 500 });
+    res.status(500).send("Error: " + error.message);
   }
 }
