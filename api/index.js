@@ -1,61 +1,71 @@
-export default async function handler(req, res) {
+export const config = {
+  runtime: 'edge',
+};
+
+export default async function handler(req) {
   const AIRTABLE_TOKEN = process.env.AIRTABLE_TOKEN;
   const BASE_ID = "appFaytZ8b3ovaOUd";
   const TABLE_NAME = "Email Logs";
 
-  // Fetch latest record from Airtable
-  const airtableRes = await fetch(
-    `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}?maxRecords=1&sort%5B0%5D%5Bfield%5D=Update&sort%5B0%5D%5Bdirection%5D=desc`,
-    {
-      headers: {
-        Authorization: `Bearer ${AIRTABLE_TOKEN}`,
-      },
+  try {
+    // Fetch latest record from Airtable
+    const airtableRes = await fetch(
+      `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(TABLE_NAME)}?maxRecords=1&sort%5B0%5D%5Bfield%5D=Update&sort%5B0%5D%5Bdirection%5D=desc`,
+      {
+        headers: {
+          Authorization: `Bearer ${AIRTABLE_TOKEN}`,
+        },
+      }
+    );
+
+    const data = await airtableRes.json();
+    
+    if (!data.records || data.records.length === 0) {
+      return new Response("No records found", { status: 404 });
     }
-  );
+    
+    const record = data.records[0].fields;
 
-  const data = await airtableRes.json();
-  const record = data.records[0].fields;
+    // Extract values
+    const u = record["Update"] || "";
+    const inbox = record["Inbox Count"] || 0;
+    const e7d = record["7D Emails"] || 0;
+    const c7d = record["7D Change"] || "0%";
+    const wt = record["Wait Time"] || 0;
+    const wtc = record["Wait Time Change"] || 0;
+    const fcr = record["% FCR Rate"] || 0;
+    const fcrc = record["% FCR Rate Change"] || "";
+    const hpw = Math.round((record["Hours Per Week"] || 0) * 10) / 10;
+    const hpd = Math.round((record["Hours Per Day"] || 0) * 10) / 10;
+    const rp7 = record["7D RP Codes Sent"] || 0;
+    const fs7 = record["7D FS Codes Sent"] || 0;
+    const rpc7 = record["7D RP Code Cost"] || "$0";
+    const fsc7 = record["7D FS Code Cost"] || "$0";
+    const rpca = record["Annual RP Code Cost"] || "$0";
+    const fsca = record["Annual FS Code Cost"] || "$0";
 
-  // Extract values
-  const u = record["Update"] || "";
-  const inbox = record["Inbox Count"] || 0;
-  const e7d = record["7D Emails"] || 0;
-  const c7d = record["7D Change"] || "0%";
-  const wt = record["Wait Time"] || 0;
-  const wtc = record["Wait Time Change"] || 0;
-  const fcr = record["% FCR Rate"] || 0;
-  const fcrc = record["% FCR Rate Change"] || "";
-  const hpw = Math.round((record["Hours Per Week"] || 0) * 10) / 10;
-  const hpd = Math.round((record["Hours Per Day"] || 0) * 10) / 10;
-  const rp7 = record["7D RP Codes Sent"] || 0;
-  const fs7 = record["7D FS Codes Sent"] || 0;
-  const rpc7 = record["7D RP Code Cost"] || "$0";
-  const fsc7 = record["7D FS Code Cost"] || "$0";
-  const rpca = record["Annual RP Code Cost"] || "$0";
-  const fsca = record["Annual FS Code Cost"] || "$0";
+    // Format change indicators
+    const ra = String(c7d).includes("-") ? "↓" : "↑";
+    const rt = ra + " " + String(c7d).replace("-", "") + " from last week";
+    const wa = wtc < 0 ? "↓" : "↑";
+    const wtt = wa + " " + Math.abs(wtc) + "h from last week";
+    const fa = String(fcrc).includes("-") ? "↓" : "↑";
+    const ft = fcrc ? (fa + " " + String(fcrc).replace("-", "") + " from last week") : "";
 
-  // Format change indicators
-  const ra = String(c7d).includes("-") ? "↓" : "↑";
-  const rt = ra + " " + String(c7d).replace("-", "") + " from last week";
-  const wa = wtc < 0 ? "↓" : "↑";
-  const wtt = wa + " " + Math.abs(wtc) + "h from last week";
-  const fa = String(fcrc).includes("-") ? "↓" : "↑";
-  const ft = fcrc ? (fa + " " + String(fcrc).replace("-", "") + " from last week") : "";
+    // Format annual costs
+    function fk(c) {
+      const n = parseInt(String(c).replace(/[$,]/g, ""));
+      if (isNaN(n)) return c;
+      const k = Math.round(Math.abs(n) / 1000);
+      return (n < 0 ? "-" : "") + "$" + k + "k";
+    }
 
-  // Format annual costs
-  function fk(c) {
-    const n = parseInt(String(c).replace(/[$,]/g, ""));
-    if (isNaN(n)) return c;
-    const k = Math.round(Math.abs(n) / 1000);
-    return (n < 0 ? "-" : "") + "$" + k + "k";
-  }
+    const F1 = "https://github.com/MaxTemkin/mpc-dashboard-assets/raw/refs/heads/main/Caraque_Trial_BdMelted.ttf";
+    const F2 = "https://github.com/MaxTemkin/mpc-dashboard-assets/raw/refs/heads/main/Gaya.otf";
+    const F3 = "https://github.com/MaxTemkin/mpc-dashboard-assets/raw/refs/heads/main/OlympeMono-Regular.otf";
+    const LOGO = "https://github.com/MaxTemkin/mpc-dashboard-assets/blob/main/MagicPuzzleCompanyEmailSM.png?raw=true";
 
-  const F1 = "https://github.com/MaxTemkin/mpc-dashboard-assets/raw/refs/heads/main/Caraque_Trial_BdMelted.ttf";
-  const F2 = "https://github.com/MaxTemkin/mpc-dashboard-assets/raw/refs/heads/main/Gaya.otf";
-  const F3 = "https://github.com/MaxTemkin/mpc-dashboard-assets/raw/refs/heads/main/OlympeMono-Regular.otf";
-  const LOGO = "https://github.com/MaxTemkin/mpc-dashboard-assets/blob/main/MagicPuzzleCompanyEmailSM.png?raw=true";
-
-  const html = `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -203,6 +213,10 @@ export default async function handler(req, res) {
 </body>
 </html>`;
 
-  res.setHeader("Content-Type", "text/html");
-  res.status(200).send(html);
+    return new Response(html, {
+      headers: { "Content-Type": "text/html" },
+    });
+  } catch (error) {
+    return new Response("Error: " + error.message, { status: 500 });
+  }
 }
